@@ -1,0 +1,77 @@
+pipeline 
+{
+    agent 
+    {
+        label 'docker-node'
+    }
+    environment 
+    {
+        DOCKERHUB_CREDENTIALS=credentials('docker-hub')
+    }
+
+    stages 
+    {
+        stage('Clone the project') 
+        {
+             steps 
+            {
+                 git branch: 'master', url: 'http://192.168.99.102:3000/klambov/bgapp'
+            }
+        }
+        stage('Start the BgApp') 
+        {
+            steps
+            {
+                sh 'docker compose up -d'
+            }
+        }
+        stage('Test the application') 
+        {
+            steps
+            {
+                script 
+                {
+                    echo 'Test #1 - reachability'
+                    sh 'echo $(curl --write-out "%{http_code}" --silent --output /dev/null http://localhost:8080) | grep 200'
+                    
+                    echo 'Test #2 - test if София is displayed'
+                    sh "curl  http://localhost:8080 | grep София"
+                }
+            }
+        }
+        stage('Stop the BgApp and remove the containers') 
+        {
+            steps
+            {
+                sh 'docker compose down -v'
+            }
+        }
+         stage('Login') 
+        {
+            steps 
+            {
+                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+            }
+        }
+        stage('Push images') 
+        {
+            steps 
+            {
+                sh 'echo "Push web image"'
+                sh 'docker image tag bgapp-pipeline_web klambov/bgapp-pipeline_web'
+                sh 'docker push klambov/bgapp-pipeline_web'
+
+                sh 'echo "Push db image"'
+                sh 'docker image tag bgapp-pipeline_db klambov/bgapp-pipeline_db'
+                sh 'docker push klambov/bgapp-pipeline_db'
+            }
+        }
+        stage('Start the BgApp with the images from Docker Hub') 
+        {
+            steps
+            {
+                sh 'docker compose -f docker-compose.images.yaml up -d'
+            }
+        }
+    }
+}
