@@ -1,0 +1,25 @@
+version: "3.8"
+
+networks:
+  bgapp-net:
+    
+services:
+  web:
+    image: klambov/bgapp-pipeline_web
+    container_name: web
+    restart: always
+    networks:
+      - bgapp-net
+    volumes:
+      - "${PROJECT_ROOT}:/var/www/html:ro"
+    ports:
+      - "80:80"
+    depends_on:
+      - db
+  db:
+    image: klambov/bgapp-pipeline_web
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=12345
+    networks:
+      - bgapp-net
